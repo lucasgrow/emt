@@ -49,61 +49,47 @@ export default function Home() {
     if (!previewRef.current) return;
     setIsGenerating(true);
     
-    // Armazenar referências originais das imagens
-    const originalSrcs = new Map<HTMLImageElement, string>();
-    
     try {
-      // Converter todas as imagens para base64 para evitar problemas de CORS no iOS
+      // Aguardar imagens carregarem
       const images = Array.from(previewRef.current.getElementsByTagName('img'));
+      console.log('Aguardando carregamento de', images.length, 'imagens...');
       
       await Promise.all(
-        images.map(async (img) => {
-          // Aguardar carregamento
-          if (!img.complete) {
-            await new Promise((resolve) => {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null);
-            });
-          }
-
-          // Guardar src original
-          originalSrcs.set(img, img.src);
-
-          // Converter para base64
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              const base64 = canvas.toDataURL('image/png');
-              img.src = base64;
-            }
-          } catch (e) {
-            console.warn('Não foi possível converter imagem para base64:', e);
-          }
-        })
+        images.map(
+          (img) =>
+            new Promise((resolve) => {
+              if (img.complete) {
+                resolve(null);
+              } else {
+                img.onload = () => resolve(null);
+                img.onerror = () => resolve(null);
+              }
+            })
+        )
       );
 
-      // Delay para garantir que as novas src estejam aplicadas
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('Imagens carregadas, gerando PNG...');
+      
+      // Delay para garantir renderização
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Usar toPng com alta qualidade
+      // Usar toPng com configuração simplificada
       const dataUrl = await toPng(previewRef.current, {
-        cacheBust: true,
-        pixelRatio: 3,
+        cacheBust: false,
+        pixelRatio: 2,
         width: 432,
         height: 540,
-        skipFonts: false,
+        backgroundColor: '#1e5a8e',
       });
-
-      // Detectar iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
       
-      if (isIOS) {
-        // Para iOS, abrir em nova aba para permitir salvar na galeria
-        const newWindow = window.open();
+      console.log('PNG gerado com sucesso!');
+
+      // Detectar dispositivo mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Para mobile, abrir em nova aba para permitir salvar
+        const newWindow = window.open('', '_blank');
         if (newWindow) {
           newWindow.document.write(`
             <!DOCTYPE html>
@@ -133,33 +119,32 @@ export default function Home() {
                     color: white;
                     margin-top: 20px;
                     text-align: center;
-                    font-size: 14px;
+                    font-size: 16px;
+                    line-height: 1.5;
                   }
                 </style>
               </head>
               <body>
                 <img src="${dataUrl}" alt="Encontro Mineiro de Tireoide" />
-                <p>Toque e segure na imagem para salvar na galeria</p>
+                <p>Toque e segure na imagem acima<br>para salvar na galeria</p>
               </body>
             </html>
           `);
           newWindow.document.close();
         }
       } else {
-        // Para outros dispositivos, usar download tradicional
+        // Para desktop, usar download tradicional
         const link = document.createElement("a");
         link.download = `encontro-mineiro-tireoide-${template}.png`;
         link.href = dataUrl;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
       }
     } catch (error) {
       console.error('Erro ao gerar imagem:', error);
-      alert('Erro ao gerar imagem. Por favor, tente novamente.');
+      alert(`Erro ao gerar imagem: ${error}`);
     } finally {
-      // Restaurar imagens originais
-      originalSrcs.forEach((originalSrc, img) => {
-        img.src = originalSrc;
-      });
       setIsGenerating(false);
     }
   }, [template]);
