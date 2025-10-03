@@ -67,27 +67,46 @@ export default function Home() {
         }
 
         // Guardar src original
-        originalSrcs.set(img, img.src);
+        const originalSrc = img.src;
+        originalSrcs.set(img, originalSrc);
         
         try {
-          // Criar canvas e converter para base64
+          console.log('Convertendo imagem:', img.alt, originalSrc);
+          
+          // Método 1: Tentar com fetch primeiro (melhor para evitar CORS)
+          try {
+            const response = await fetch(originalSrc);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            
+            const base64 = await new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            
+            img.src = base64;
+            console.log('✓ Convertida via fetch:', img.alt);
+            continue;
+          } catch (fetchError) {
+            console.warn('Fetch falhou, tentando canvas:', fetchError);
+          }
+          
+          // Método 2: Fallback para canvas (se fetch falhar)
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
           
           if (ctx && img.naturalWidth > 0 && img.naturalHeight > 0) {
             canvas.width = img.naturalWidth;
             canvas.height = img.naturalHeight;
-            
-            // Desenhar imagem no canvas
             ctx.drawImage(img, 0, 0);
-            
-            // Converter para base64
             const base64 = canvas.toDataURL('image/png');
             img.src = base64;
-            console.log('Imagem convertida:', img.alt || 'sem alt');
+            console.log('✓ Convertida via canvas:', img.alt);
+          } else {
+            console.error('✗ Não foi possível converter:', img.alt, 'dims:', img.naturalWidth, 'x', img.naturalHeight);
           }
         } catch (e) {
-          console.error('Erro ao converter imagem:', img.src, e);
+          console.error('✗ Erro ao converter imagem:', img.alt, e);
         }
       }
 
@@ -199,9 +218,28 @@ export default function Home() {
           });
         }
 
-        originalSrcs.set(img, img.src);
+        const originalSrc = img.src;
+        originalSrcs.set(img, originalSrc);
         
         try {
+          // Tentar fetch primeiro
+          try {
+            const response = await fetch(originalSrc);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            
+            const base64 = await new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            
+            img.src = base64;
+            continue;
+          } catch (fetchError) {
+            console.warn('Fetch falhou:', fetchError);
+          }
+          
+          // Fallback para canvas
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
           
