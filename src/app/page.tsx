@@ -49,37 +49,63 @@ export default function Home() {
     if (!previewRef.current) return;
     setIsGenerating(true);
     
+    // Armazenar referências originais
+    const originalSrcs = new Map<HTMLImageElement, string>();
+    
     try {
-      // Aguardar imagens carregarem
+      // Converter todas as imagens para base64
       const images = Array.from(previewRef.current.getElementsByTagName('img'));
-      console.log('Aguardando carregamento de', images.length, 'imagens...');
+      console.log('Convertendo', images.length, 'imagens para base64...');
       
-      await Promise.all(
-        images.map(
-          (img) =>
-            new Promise((resolve) => {
-              if (img.complete) {
-                resolve(null);
-              } else {
-                img.onload = () => resolve(null);
-                img.onerror = () => resolve(null);
-              }
-            })
-        )
-      );
+      for (const img of images) {
+        // Aguardar carregamento
+        if (!img.complete) {
+          await new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        }
 
-      console.log('Imagens carregadas, gerando PNG...');
-      
-      // Delay para garantir renderização
-      await new Promise(resolve => setTimeout(resolve, 300));
+        // Guardar src original
+        originalSrcs.set(img, img.src);
+        
+        try {
+          // Criar canvas e converter para base64
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          
+          if (ctx && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            
+            // Desenhar imagem no canvas
+            ctx.drawImage(img, 0, 0);
+            
+            // Converter para base64
+            const base64 = canvas.toDataURL('image/png');
+            img.src = base64;
+            console.log('Imagem convertida:', img.alt || 'sem alt');
+          }
+        } catch (e) {
+          console.error('Erro ao converter imagem:', img.src, e);
+        }
+      }
 
-      // Usar toPng com configuração simplificada
+      console.log('Aguardando renderização...');
+      // Delay maior para garantir que os base64 estejam aplicados
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      console.log('Gerando PNG...');
+      // Usar toPng com configuração otimizada
       const dataUrl = await toPng(previewRef.current, {
-        cacheBust: false,
+        cacheBust: true,
         pixelRatio: 2,
         width: 432,
         height: 540,
         backgroundColor: '#1e5a8e',
+        style: {
+          transform: 'scale(1)',
+        },
       });
       
       console.log('PNG gerado com sucesso!');
@@ -145,6 +171,10 @@ export default function Home() {
       console.error('Erro ao gerar imagem:', error);
       alert(`Erro ao gerar imagem: ${error}`);
     } finally {
+      // Restaurar imagens originais
+      originalSrcs.forEach((originalSrc, img) => {
+        img.src = originalSrc;
+      });
       setIsGenerating(false);
     }
   }, [template]);
@@ -153,35 +183,53 @@ export default function Home() {
     if (!previewRef.current) return;
     setIsGenerating(true);
     
+    // Armazenar referências originais
+    const originalSrcs = new Map<HTMLImageElement, string>();
+    
     try {
-      // Aguardar imagens carregarem
+      // Converter todas as imagens para base64
       const images = Array.from(previewRef.current.getElementsByTagName('img'));
       console.log('Preparando para compartilhar...');
       
-      await Promise.all(
-        images.map(
-          (img) =>
-            new Promise((resolve) => {
-              if (img.complete) {
-                resolve(null);
-              } else {
-                img.onload = () => resolve(null);
-                img.onerror = () => resolve(null);
-              }
-            })
-        )
-      );
+      for (const img of images) {
+        if (!img.complete) {
+          await new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        }
+
+        originalSrcs.set(img, img.src);
+        
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          
+          if (ctx && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            ctx.drawImage(img, 0, 0);
+            const base64 = canvas.toDataURL('image/png');
+            img.src = base64;
+          }
+        } catch (e) {
+          console.error('Erro ao converter imagem:', e);
+        }
+      }
 
       // Delay para garantir renderização
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // Gerar PNG
       const dataUrl = await toPng(previewRef.current, {
-        cacheBust: false,
+        cacheBust: true,
         pixelRatio: 2,
         width: 432,
         height: 540,
         backgroundColor: '#1e5a8e',
+        style: {
+          transform: 'scale(1)',
+        },
       });
 
       // Converter dataURL para Blob
@@ -209,6 +257,10 @@ export default function Home() {
       console.error('Erro ao compartilhar imagem:', error);
       alert(`Erro ao compartilhar: ${error}`);
     } finally {
+      // Restaurar imagens originais
+      originalSrcs.forEach((originalSrc, img) => {
+        img.src = originalSrc;
+      });
       setIsGenerating(false);
     }
   }, [template, exportImage]);
