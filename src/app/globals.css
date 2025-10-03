@@ -1,0 +1,41 @@
+@config "../../tailwind.config.ts";
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f5fbff;
+  --foreground: #162028;
+  --primary: #0ea2ef;
+  --primary-dark: #115266;
+  --secondary: #5f8ba4;
+  --accent: #0edef5;
+  --muted: #aecddc;
+  --surface: #ffffffee;
+  --border: #d8e6ef;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: #fafeff;
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: #f6fcff;
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-surface: var(--surface);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: radial-gradient(circle at 20% 20%, #d6f4ff 0%, transparent 45%),
+    radial-gradient(circle at 80% 0%, #9bdcff 0%, transparent 50%),
+    linear-gradient(140deg, #eef7fb 0%, #fafeff 50%, #e5f3fa 100%);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
