@@ -149,6 +149,70 @@ export default function Home() {
     }
   }, [template]);
 
+  const shareImage = useCallback(async () => {
+    if (!previewRef.current) return;
+    setIsGenerating(true);
+    
+    try {
+      // Aguardar imagens carregarem
+      const images = Array.from(previewRef.current.getElementsByTagName('img'));
+      console.log('Preparando para compartilhar...');
+      
+      await Promise.all(
+        images.map(
+          (img) =>
+            new Promise((resolve) => {
+              if (img.complete) {
+                resolve(null);
+              } else {
+                img.onload = () => resolve(null);
+                img.onerror = () => resolve(null);
+              }
+            })
+        )
+      );
+
+      // Delay para garantir renderização
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Gerar PNG
+      const dataUrl = await toPng(previewRef.current, {
+        cacheBust: false,
+        pixelRatio: 2,
+        width: 432,
+        height: 540,
+        backgroundColor: '#1e5a8e',
+      });
+
+      // Converter dataURL para Blob
+      const blob = await (await fetch(dataUrl)).blob();
+      
+      // Criar arquivo a partir do blob
+      const file = new File([blob], `encontro-mineiro-tireoide-${template}.png`, {
+        type: 'image/png',
+      });
+
+      // Verificar se o navegador suporta Web Share API
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Encontro Mineiro de Tireoide',
+          text: 'Confira minha participação no Encontro Mineiro de Tireoide!',
+        });
+        console.log('Imagem compartilhada com sucesso!');
+      } else {
+        // Fallback: baixar normalmente
+        alert('Seu navegador não suporta compartilhamento. A imagem será baixada.');
+        exportImage();
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar imagem:', error);
+      alert(`Erro ao compartilhar: ${error}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [template, exportImage]);
+
   const reset = () => {
     setStep("select");
     setTemplate(null);
@@ -363,13 +427,49 @@ export default function Home() {
           <h2 className="text-2xl font-semibold text-[#0f172a] sm:text-3xl">
             Seu post está pronto!
           </h2>
-          <p className="text-sm text-[#475569] sm:text-base">
-            Confira o preview e baixe a versão final em alta resolução.
-          </p>
         </header>
 
-        <div className="flex w-full flex-col items-center gap-6 lg:flex-row lg:items-start lg:gap-10">
-          <Card className="w-full max-w-md border border-[#ffffff80] bg-[#ffffffcc] shadow-2xl backdrop-blur lg:max-w-lg" radius="lg">
+        <div className="flex w-full max-w-3xl flex-col items-center gap-6">
+          {/* Próximos passos - movido para cima */}
+          <Card className="w-full border border-[#e2e8f0] bg-[#ffffffe6] shadow-xl">
+            <CardBody className="space-y-4 p-5 sm:p-6">
+              <h3 className="text-lg font-semibold text-[#0f172a] sm:text-xl text-center">
+                Próximos passos
+              </h3>
+              <ul className="space-y-3 text-sm text-[#475569] sm:text-base">
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#06b6d4] text-xs font-bold text-white">
+                    1
+                  </span>
+                  <span>Toque em &quot;Salvar ou Compartilhar&quot; abaixo da imagem.</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#06b6d4] text-xs font-bold text-white">
+                    2
+                  </span>
+                  <span>Escolha salvar na galeria ou compartilhar nas redes sociais.</span>
+                </li>
+                <li className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#06b6d4] text-xs font-bold text-white">
+                      3
+                    </span>
+                    <span>Use o link abaixo para compartilhar a inscrição do evento:</span>
+                  </div>
+                  <Button
+                    onPress={copyLink}
+                    size="sm"
+                    className="ml-9 bg-[#0891b2] text-white hover:bg-[#0e7490]"
+                  >
+                    {copied ? "✓ Copiado!" : "Copiar link de inscrição"}
+                  </Button>
+                </li>
+              </ul>
+            </CardBody>
+          </Card>
+
+          {/* Preview da imagem */}
+          <Card className="w-full max-w-md border border-[#ffffff80] bg-[#ffffffcc] shadow-2xl backdrop-blur" radius="lg">
             <CardBody className="flex justify-center p-4 sm:p-6">
               <div className="flex w-full justify-center">
                 <div className="origin-top scale-[0.82] sm:scale-100">
@@ -555,60 +655,24 @@ export default function Home() {
             </CardBody>
           </Card>
 
-          <div className="flex w-full max-w-md flex-col gap-5 sm:max-w-lg lg:flex-1 lg:gap-6">
-            <Card className="border border-[#e2e8f0] bg-[#ffffffe6] shadow-xl">
-              <CardBody className="space-y-4 p-5 sm:p-6">
-                <h3 className="text-lg font-semibold text-[#0f172a] sm:text-xl">
-                  Próximos passos
-                </h3>
-                <ul className="space-y-3 text-sm text-[#475569] sm:text-base">
-                  <li className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#06b6d4] text-xs font-bold text-white">
-                      1
-                    </span>
-                    <span>Toque em &quot;Baixar imagem&quot; para salvar o arquivo.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#06b6d4] text-xs font-bold text-white">
-                      2
-                    </span>
-                    <span>Compartilhe nas redes sociais.</span>
-                  </li>
-                  <li className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#06b6d4] text-xs font-bold text-white">
-                        3
-                      </span>
-                      <span>Copie o link abaixo para compartilhar a inscrição:</span>
-                    </div>
-                    <Button
-                      onPress={copyLink}
-                      size="sm"
-                      className="ml-9 bg-[#0891b2] text-white hover:bg-[#0e7490]"
-                    >
-                      {copied ? "✓ Copiado!" : "Copiar link de inscrição"}
-                    </Button>
-                  </li>
-                </ul>
-              </CardBody>
-            </Card>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                onClick={exportImage}
-                isLoading={isGenerating}
-                className="h-12 flex-1 rounded-xl bg-gradient-to-r from-[#06b6d4] to-[#2563eb] font-semibold text-white"
-              >
-                Baixar imagem
-              </Button>
-              <Button
-                onClick={reset}
-                variant="flat"
-                className="h-12 flex-1 rounded-xl font-semibold"
-              >
-                Recomeçar
-              </Button>
-            </div>
+          {/* Botões abaixo da imagem */}
+          <div className="flex w-full max-w-md flex-col gap-3">
+            <Button
+              onClick={shareImage}
+              isLoading={isGenerating}
+              size="lg"
+              className="h-14 rounded-xl bg-gradient-to-r from-[#06b6d4] to-[#2563eb] text-lg font-semibold text-white shadow-lg"
+            >
+              {isGenerating ? 'Gerando...' : '📥 Salvar ou Compartilhar'}
+            </Button>
+            <Button
+              onClick={reset}
+              variant="bordered"
+              size="lg"
+              className="h-14 rounded-xl border-2 text-lg font-semibold"
+            >
+              🔄 Criar outro post
+            </Button>
           </div>
         </div>
       </div>
